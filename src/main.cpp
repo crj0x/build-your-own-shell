@@ -1,12 +1,15 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <unordered_set>
 
 int main()
 {
   // Flush after every std::cout / std:cerr
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
+
+  std::unordered_set<std::string> builtins = {"exit", "echo", "type"};
 
   while (true)
   {
@@ -44,6 +47,19 @@ int main()
       }
       // the last new line character at the end
       std::cout << std::endl;
+    }
+    else if (cmd_name == "type")
+    {
+      std::string type_arg;
+      tokenizer >> type_arg;
+      if (builtins.count(type_arg))
+      {
+        std::cout << type_arg << " is a shell builtin" << std::endl;
+      }
+      else
+      {
+        std::cout << type_arg << ": not found" << std::endl;
+      }
     }
     else
     {
