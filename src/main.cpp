@@ -4,7 +4,8 @@
 #include <unordered_set>
 #include <vector>
 #include <filesystem>
-#include <unistd.h>
+#include <unistd.h> // for fork, execvp, access
+#include <sys/wait.h>
 
 // preprocessor macro to detect the platform
 #ifdef _WIN32
@@ -105,6 +106,7 @@ int main()
             // get the full path of the file
             std::filesystem::path full_path = p;
             full_path = full_path / type_arg;
+            // TODO: access only works on posix systems. (add compatibility for windows)
             if (access(full_path.c_str(), X_OK) == 0)
             {
               std::cout << type_arg << " is " << full_path.string() << std::endl;
@@ -121,7 +123,48 @@ int main()
     }
     else
     {
-      std::cout << cmd_name << ": command not found" << std::endl;
+
+      // create the arguements list
+      std::vector<std::string> cmd_args;
+      cmd_args.push_back(cmd_name); // the first one is ALWAYS the command name itself (convention)
+      std::string arg;
+      while (tokenizer >> arg)
+      {
+        cmd_args.push_back(arg);
+      }
+      std::vector<char *> c_args(cmd_args.size());
+      for (size_t i = 0; i < cmd_args.size(); i++)
+      {
+        // we can do this because even std::strings also have a nullptr terminator at the end.
+        c_args[i] = &cmd_args[i][0];
+      }
+      c_args.push_back(nullptr); // args list that we will pass to execvp also MUST end with nullptr.
+
+      // run executables and pass arguements to them
+      // here we can't use system() as it executes given command as a shell command
+      // hence, defeating the purpose of creating a shell from scratch
+      pid_t child_pid = fork();
+      if (child_pid == 0)
+      {
+        // child process
+        // execvp literally turns the process to the new executable so the current code is completely gone from the child process
+        execvp(c_args[0], c_args.data());
+
+        // If execvp returns, it failed (command not found/missing perms)
+        std::cerr << cmd_name << ": command not found" << std::endl;
+        exit(1); // kill the child process with exit code 1
+      }
+      else if (child_pid > 0)
+      {
+        // parent process
+        // wait for the child process to finish
+        int status;
+        waitpid(child_pid, &status, 0); // puts process to sleep. uses 0% cpu while asleep
+      }
+      else
+      {
+        std::cerr << "fork failed" << std::endl;
+      }
     }
   }
 }
