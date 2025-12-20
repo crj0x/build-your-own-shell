@@ -20,7 +20,7 @@ int main()
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
 
-  std::unordered_set<std::string> builtins = {"exit", "echo", "type", "pwd"};
+  std::unordered_set<std::string> builtins = {"exit", "echo", "type", "pwd", "cd"};
 
   while (true)
   {
@@ -126,9 +126,30 @@ int main()
       std::filesystem::path current_path = std::filesystem::current_path();
       std::cout << current_path.string() << std::endl;
     }
+    else if (cmd_name == "cd")
+    {
+      std::string cd_arg;
+      tokenizer >> cd_arg;
+      std::error_code ec;
+      std::filesystem::current_path(cd_arg, ec);
+      if (ec)
+      {
+        if (ec == std::errc::no_such_file_or_directory)
+        {
+          std::cout << "cd: " << cd_arg << ": No such file or directory" << std::endl;
+        }
+        else if (ec == std::errc::permission_denied)
+        {
+          std::cout << "cd: " << cd_arg << ": Permission denied" << std::endl;
+        }
+        else
+        {
+          std::cout << "cd: " << cd_arg << ec.message() << std::endl;
+        }
+      }
+    }
     else
     {
-
       // create the arguements list
       std::vector<std::string> cmd_args;
       cmd_args.push_back(cmd_name); // the first one is ALWAYS the command name itself (convention)
