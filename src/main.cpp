@@ -126,25 +126,40 @@ int main()
       std::filesystem::path current_path = std::filesystem::current_path();
       std::cout << current_path.string() << std::endl;
     }
+    // TODO: implement cd ~/dir0/dir1, cd -, cd ~username/dir0/dir1
     else if (cmd_name == "cd")
     {
       std::string cd_arg;
-      tokenizer >> cd_arg;
+      if (!(tokenizer >> cd_arg))
+      {
+        // handle cd with no args
+        cd_arg = "~";
+      }
       std::error_code ec;
+      if (cd_arg == "~")
+      {
+        char *home_path = std::getenv("HOME");
+        if (home_path == nullptr)
+        {
+          std::cerr << "cd: HOME not set" << std::endl;
+          continue;
+        }
+        cd_arg = std::string(home_path);
+      }
       std::filesystem::current_path(cd_arg, ec);
       if (ec)
       {
         if (ec == std::errc::no_such_file_or_directory)
         {
-          std::cout << "cd: " << cd_arg << ": No such file or directory" << std::endl;
+          std::cerr << "cd: " << cd_arg << ": No such file or directory" << std::endl;
         }
         else if (ec == std::errc::permission_denied)
         {
-          std::cout << "cd: " << cd_arg << ": Permission denied" << std::endl;
+          std::cerr << "cd: " << cd_arg << ": Permission denied" << std::endl;
         }
         else
         {
-          std::cout << "cd: " << cd_arg << ec.message() << std::endl;
+          std::cerr << "cd: " << cd_arg << ec.message() << std::endl;
         }
       }
     }
