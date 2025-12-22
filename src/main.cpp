@@ -18,15 +18,48 @@ const char PATH_DELIMITER = ':';
 
 std::vector<std::string> parse_input(const std::string &input)
 {
-  // wrap the string in a string stream to parse it
-  std::stringstream tokenizer(input);
-
   std::vector<std::string> args;
-  std::string token;
-  while (tokenizer >> token)
+
+  bool in_single_quotes = false;
+  std::string token = "";
+  for (size_t i = 0; i < input.size(); i++)
   {
-    args.push_back(token);
+    char current_char = input[i];
+    if (in_single_quotes)
+    {
+      if (input[i] == '\'')
+      {
+        in_single_quotes = false;
+      }
+      else
+      {
+        token += input[i];
+      }
+    }
+    else
+    {
+      // ignore spaces if previous was also space
+      if ((input[i] == ' ') && (i == 0 || input[i - 1] == ' '))
+      {
+        continue;
+      }
+      else if (input[i] == '\'')
+      {
+        in_single_quotes = true;
+      }
+      else if (input[i] == ' ')
+      {
+        args.push_back(token);
+        token = "";
+      }
+      else
+      {
+        token += input[i];
+      }
+    }
   }
+  args.push_back(token);
+
   return args;
 }
 
