@@ -4,8 +4,10 @@
 #include <filesystem>
 #include <cstdlib>  // for std::getenv
 #include <unistd.h> // for POSIX access()
+#include <unordered_set>
 
 const char PATH_DELIMITER = ':';
+const std::unordered_set<char> escapable_in_double_quotes = {'"', '\\', '$', '`', '\n'};
 
 std::vector<std::string> take_input()
 {
@@ -39,11 +41,28 @@ tokenizer_status tokenize_string(std::vector<std::string> &args, tokenizer_statu
 
   for (size_t i = 0; i < input.size(); i++)
   {
-    if (in_double_quotes)
+    if (in_backslash)
+    {
+      if (!in_double_quotes || escapable_in_double_quotes.count(input[i]))
+      {
+        token += input[i];
+      }
+      else
+      {
+        token += '\\';
+        token += input[i];
+      }
+      in_backslash = false;
+    }
+    else if (in_double_quotes)
     {
       if (input[i] == '"')
       {
         in_double_quotes = false;
+      }
+      else if (input[i] == '\\')
+      {
+        in_backslash = true;
       }
       else
       {
@@ -60,11 +79,6 @@ tokenizer_status tokenize_string(std::vector<std::string> &args, tokenizer_statu
       {
         token += input[i];
       }
-    }
-    else if (in_backslash)
-    {
-      token += input[i];
-      in_backslash = false;
     }
     else
     {
