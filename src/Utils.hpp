@@ -13,7 +13,9 @@ struct tokenizer_status
 
 extern const char PATH_DELIMITER;
 
+void print_prompt();
 std::vector<std::string> take_input();
 tokenizer_status tokenize_string(std::vector<std::string> &args, tokenizer_status status, const std::string &input);
+void process_input(std::vector<std::string> &args);
 bool is_executable(const std::string &path_str);
 std::string find_in_path(const std::string &cmd);

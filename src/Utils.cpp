@@ -1,4 +1,6 @@
 #include "Utils.hpp"
+#include "Executor.hpp"
+#include "Builtins.hpp"
 
 #include <iostream>
 #include <filesystem>
@@ -8,6 +10,12 @@
 
 const char PATH_DELIMITER = ':';
 const std::unordered_set<char> escapable_in_double_quotes = {'"', '\\', '$', '`', '\n'};
+
+void print_prompt()
+{
+  // print the prompt
+  std::cout << "$ ";
+}
 
 std::vector<std::string> take_input()
 {
@@ -128,6 +136,25 @@ tokenizer_status tokenize_string(std::vector<std::string> &args, tokenizer_statu
   take_input_again = false;
 
   return status;
+}
+
+void process_input(std::vector<std::string> &args)
+{
+  if (args.size() == 0)
+  {
+    return;
+  }
+  if (builtins.find(args[0]) != builtins.end())
+  {
+    // we use .at() here instead of builtins[] syntax as builtins is a const unordered_map
+    // builtins[args[0]] might modify builtins if args[0] doesnt exist in builtins
+    // .at() just throws error if the key doesn't exist.
+    builtins.at(args[0])(args);
+  }
+  else
+  {
+    execute_external(args);
+  }
 }
 
 bool is_executable(const std::string &path_str)

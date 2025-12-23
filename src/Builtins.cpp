@@ -5,7 +5,6 @@
 #include <iostream>
 #include <filesystem>
 
-
 using CommandHandler = std::function<void(const std::vector<std::string> &args)>;
 
 const std::unordered_set<std::string> builtin_names = {"exit", "echo", "type", "pwd", "cd"};
