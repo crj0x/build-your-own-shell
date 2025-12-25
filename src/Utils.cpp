@@ -142,48 +142,61 @@ tokenizer_status tokenize_string(std::vector<std::string> &args, tokenizer_statu
 void process_input(std::vector<std::string> &args)
 {
   int file_fd;
-  int saved_stdout_fd;
-  int saved_stderr_fd;
-  int found_redirection = 0;
+  int saved_fd;
+  bool found_redirection = false;
   // write only, create if file doesnt exist, trucate the file if contents are already there (empty the file)
-  int flags = O_WRONLY | O_CREAT | O_TRUNC;
+  int write_flags = O_WRONLY | O_CREAT | O_TRUNC;
+  int append_flags = O_WRONLY | O_CREAT | O_APPEND;
   // read, write for user, read for group, read for others
   int mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+  int redirected_stream_file_no;
 
   // TODO: the parser doesn't handle cases like "echo hello>a" for now it needs to have whitespaces in between
   for (size_t i = 0; i < args.size(); i++)
   {
     // for now assuming that there WILL be an arguement after > or 1>
+    // assuming there will be only one kind of redirection in one command
+
     if (args[i] == ">" || args[i] == "1>")
     {
-      found_redirection = 1;
-      file_fd = open(args[i + 1].c_str(), flags, mode);
-
-      // create a new fd pointing to stdout
-      saved_stdout_fd = dup(STDOUT_FILENO);
-
-      // make original stdout fd point to the file
-      dup2(file_fd, STDOUT_FILENO);
-      close(file_fd);
-
-      args.erase(args.begin() + (i + 1)); // remove file name from args
-      args.erase(args.begin() + (i));     // remove operator from args
+      found_redirection = true;
+      file_fd = open(args[i + 1].c_str(), write_flags, mode);
+      redirected_stream_file_no = STDOUT_FILENO;
     }
     else if (args[i] == "2>")
     {
-      found_redirection = 2;
-      file_fd = open(args[i + 1].c_str(), flags, mode);
-
-      // create a new fd pointing to stderr
-      saved_stderr_fd = dup(STDERR_FILENO);
-
-      // make original stderr fd point to the file
-      dup2(file_fd, STDERR_FILENO);
-      close(file_fd);
-
+      found_redirection = true;
+      file_fd = open(args[i + 1].c_str(), write_flags, mode);
+      redirected_stream_file_no = STDERR_FILENO;
+    }
+    else if (args[i] == ">>" || args[i] == "1>>")
+    {
+      found_redirection = true;
+      file_fd = open(args[i + 1].c_str(), append_flags, mode);
+      redirected_stream_file_no = STDOUT_FILENO;
+    }
+    else if (args[i] == "2>>")
+    {
+      found_redirection = true;
+      file_fd = open(args[i + 1].c_str(), append_flags, mode);
+      redirected_stream_file_no = STDERR_FILENO;
+    }
+    if (found_redirection)
+    {
       args.erase(args.begin() + (i + 1)); // remove file name from args
       args.erase(args.begin() + (i));     // remove operator from args
+      i--;                                // so that an arg doesn't get skipped when scanning
     }
+  }
+  if (found_redirection)
+  {
+    // TODO: error handling when opening files
+    // create a new fd pointing to stdout/stderr
+    saved_fd = dup(redirected_stream_file_no);
+    // make original stdout/stderr fd point to the file
+    dup2(file_fd, redirected_stream_file_no);
+    // close file_fd we don't need it anymore
+    close(file_fd);
   }
 
   if (args.size() == 0)
@@ -203,17 +216,12 @@ void process_input(std::vector<std::string> &args)
   }
 
   // do cleanup
-  if (found_redirection == 1)
+  if (found_redirection)
   {
-    // make original stdout fd point back to the stdout file description
-    dup2(saved_stdout_fd, STDOUT_FILENO);
-    // close the temporary saved_stdout_fd
-    close(saved_stdout_fd);
-  }
-  else if (found_redirection == 2)
-  {
-    dup2(saved_stderr_fd, STDERR_FILENO);
-    close(saved_stderr_fd);
+    // make original stdout/stderr fd point back to the stdout/stderr file description
+    dup2(saved_fd, redirected_stream_file_no);
+    // close the temporary saved_fd
+    close(saved_fd);
   }
 }
 
