@@ -143,7 +143,8 @@ void process_input(std::vector<std::string> &args)
 {
   int file_fd;
   int saved_stdout_fd;
-  bool found_redirection = false;
+  int saved_stderr_fd;
+  int found_redirection = 0;
   // write only, create if file doesnt exist, trucate the file if contents are already there (empty the file)
   int flags = O_WRONLY | O_CREAT | O_TRUNC;
   // read, write for user, read for group, read for others
@@ -155,7 +156,7 @@ void process_input(std::vector<std::string> &args)
     // for now assuming that there WILL be an arguement after > or 1>
     if (args[i] == ">" || args[i] == "1>")
     {
-      found_redirection = true;
+      found_redirection = 1;
       file_fd = open(args[i + 1].c_str(), flags, mode);
 
       // create a new fd pointing to stdout
@@ -163,6 +164,21 @@ void process_input(std::vector<std::string> &args)
 
       // make original stdout fd point to the file
       dup2(file_fd, STDOUT_FILENO);
+      close(file_fd);
+
+      args.erase(args.begin() + (i + 1)); // remove file name from args
+      args.erase(args.begin() + (i));     // remove operator from args
+    }
+    else if (args[i] == "2>")
+    {
+      found_redirection = 2;
+      file_fd = open(args[i + 1].c_str(), flags, mode);
+
+      // create a new fd pointing to stderr
+      saved_stderr_fd = dup(STDERR_FILENO);
+
+      // make original stderr fd point to the file
+      dup2(file_fd, STDERR_FILENO);
       close(file_fd);
 
       args.erase(args.begin() + (i + 1)); // remove file name from args
@@ -186,12 +202,18 @@ void process_input(std::vector<std::string> &args)
     execute_external(args);
   }
 
-  if (found_redirection)
+  // do cleanup
+  if (found_redirection == 1)
   {
     // make original stdout fd point back to the stdout file description
     dup2(saved_stdout_fd, STDOUT_FILENO);
     // close the temporary saved_stdout_fd
     close(saved_stdout_fd);
+  }
+  else if (found_redirection == 2)
+  {
+    dup2(saved_stderr_fd, STDERR_FILENO);
+    close(saved_stderr_fd);
   }
 }
 
